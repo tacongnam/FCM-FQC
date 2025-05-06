@@ -58,16 +58,16 @@ def main():
         RunMultipleTimes(testcase_name)
     elif len(sys.argv) == 6:
         testcase_name = sys.argv[1]
-        for q_a in range(int(sys.argv[2]), int(sys.argv[3]), 0.1):
-            for q_g in range(int(sys.argv[4]), int(sys.argv[5]), 0.1):
+        for q_a in range(float(sys.argv[2]), float(sys.argv[3]), 0.2):
+            for q_g in range(float(sys.argv[4]), float(sys.argv[5]), 0.2):
                 setup_parameters(q_alpha=q_a, q_gamma=q_g)
                 print(f'Option 3: Chạy bộ test {testcase_name} x 1 - q_alpha {q_a} - q_gamma {q_g}')
                 RunOnce(testcase_name)
     elif len(sys.argv) == 8:
         testcase_name = sys.argv[1]
-        for a in range(int(sys.argv[2]), int(sys.argv[3]), 0.1):
-            for b in range(int(sys.argv[4]), int(sys.argv[5]), 0.1):
-                for c in range(int(sys.argv[6]), int(sys.argv[7]), 0.1):
+        for a in range(float(sys.argv[2]), float(sys.argv[3]), 0.1):
+            for b in range(float(sys.argv[4]), float(sys.argv[5]), 0.1):
+                for c in range(float(sys.argv[6]), float(sys.argv[7]), 0.1):
                     setup_parameters(q_alpha=q_a, q_gamma=q_g)
                     print(f'Option 3: Chạy bộ test {testcase_name} x 1 - a {a} - b {b} - c {c} - d {1 - a - b - c}')
                     RunOnce(testcase_name)
