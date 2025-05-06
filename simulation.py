@@ -21,7 +21,7 @@ def setup_parameters(q_alpha=0.5, q_gamma=0.5, alpha=0.7, beta=0.1, gamma=0.1):
 '''
 
 def RunOnce(testcase_name = 'hanoi1000n50'):
-    sim = Simulation(f'data/{testcase_name}_allconnect.yaml')
+    sim = Simulation(f'data/{testcase_name}_new.yaml')
     sim.network_init()
     life_time, elapsed_time = sim.run_simulator(E_mc=108000, run_times=1)
     del sim
