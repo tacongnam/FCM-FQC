@@ -59,8 +59,8 @@ def main():
         RunMultipleTimes(testcase_name)
     elif len(sys.argv) == 6:
         testcase_name = sys.argv[1]
-        for q_a in np.arange(float(sys.argv[2]), float(sys.argv[3]) + 0.1, 0.2):
-            for q_g in np.arange(float(sys.argv[4]), float(sys.argv[5]) + 0.1, 0.2):
+        for q_a in np.arange(float(sys.argv[2]), float(sys.argv[3]) + 0.1, 0.1):
+            for q_g in np.arange(float(sys.argv[4]), float(sys.argv[5]) + 0.1, 0.1):
                 setup_parameters(q_alpha=q_a, q_gamma=q_g)
                 print(f'Option 3: Chạy bộ test {testcase_name} x 1 - q_alpha {q_a} - q_gamma {q_g}')
                 RunOnce(testcase_name, output_filename=testcase_name + '_q_' + str(q_a) + '_' + str(q_g))
