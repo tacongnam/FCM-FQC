@@ -142,7 +142,7 @@ class Simulation:
         
         return list_node
     
-    def run_simulator(self, run_times, E_mc):
+    def run_simulator(self, run_times, E_mc, output_filename):
         try:
             os.makedirs('log')
         except FileExistsError:
@@ -152,8 +152,8 @@ class Simulation:
         except FileExistsError:
             pass
 
-        output_file = open("log/q_learning_Kmeans.csv", "w")
-        result = csv.DictWriter(output_file, fieldnames=["nb_run", "lifetime", "dead_node"])
+        output_file = open(f"log/{output_filename}_result.csv", "w")
+        result = csv.DictWriter(output_file, fieldnames=["nb_run", "lifetime", "dead_node", "elapsed_time"])
         result.writeheader()
             
         life_time = []
@@ -208,6 +208,8 @@ class Simulation:
             life_time.append(life)
             elapsed_time.append(elapsed)
             result.writerow({"nb_run": nb_run, "lifetime": life, "dead_node": nb_dead, "elapsed_time": elapsed})
+
+            print(f'Finished runtime {nb_run}')
 
         confidence = 0.95
         h = sem(life_time) * t.ppf((1 + confidence) / 2, len(life_time) - 1)
