@@ -1,6 +1,6 @@
 import numpy as np
 from optimizer.rewards import reward_function, additional_reward_function
-from optimizer.utils import init_function, FLCDS_model, get_all_path, q_max_function
+from optimizer.utils import init_function, FLCDS_model, q_max_function
 from simulator import parameters as para
 
 class Qlearning:
@@ -20,15 +20,11 @@ class Qlearning:
         self.q_gamma = q_gamma
 
         self.FLCDS = FLCDS_model(network=net)
-        self.all_path = get_all_path(net=net)
-
-    def update_all_path(self, net):
-        self.all_path = get_all_path(net=net)
 
     def update(self, mc, network, time_stem, q_max_func=q_max_function, reward_func=reward_function, doubleq=True):
         if not len(self.list_request):
             return self.action_list[mc.state], 0.0
-        
+
         if mc.state < para.n_clusters:
             network.clusters.last_charging_time[mc.state] = network.t
 

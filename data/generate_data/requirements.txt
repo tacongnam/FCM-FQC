@@ -1,0 +1,7 @@
+ortools
+cryptography==41.0.7
+secrets
+shapely
+argparse
+matplotlib
+pyyaml

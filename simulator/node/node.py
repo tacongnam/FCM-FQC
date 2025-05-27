@@ -38,6 +38,7 @@ class Node:
         self.listTargets = [] # danh sách các targets trong phạm vi có thể theo dõi, không tính tới việc sẽ theo dõi các targets này hay không
 
         self.sent_through = 0   # số package gửi qua
+        self.coverage = []      # target đang quan sát
         self.charged = 0        # năng lượng đã sạc
         self.charged_added = 0  # năng lượng đã sạc trong giây
         self.charged_count = 0  # số giây đã sạc
@@ -82,35 +83,36 @@ class Node:
         d0 = math.sqrt(para.EFS / para.EMP)
         package.update_path(self.id)
         dist = distance.euclidean(self.location, para.base)
-        pkg_size = package.size
 
         if dist > self.com_ran and receiver.id != -1:
             d = distance.euclidean(self.location, receiver.location)
             e_send = para.ET + (para.EFS * d ** 2 if d <= d0 else para.EMP * d ** 4)
-            energy_used = e_send * pkg_size
+            energy_used = e_send * package.size
         
             # Cập nhật năng lượng và thống kê
             self.energy -= energy_used
             self.used_energy += energy_used
             self.actual_used += energy_used
-            if pkg_size > 0:
-                self.sent_through += 1
+            
+            self.sent_through += 1
         
             # Gửi tiếp
             receiver.receive(package)
             receiver.send(net, package, receiver=receiver.find_receiver(net=net))
         elif dist <= self.com_ran:
             package.is_success = True
+            
             d = dist
             e_send = para.ET + para.EFS * d ** 2 if d <= d0 else para.ET + para.EMP * d ** 4
 
             self.energy -= e_send * package.size
             self.used_energy += e_send * package.size
             self.actual_used += e_send * package.size
-            if package.size > 0:
-                self.sent_through += 1
+            
+            self.sent_through += 1
+            
             package.update_path(-1)
-
+        
         self.check_active(net)
 
     def receive(self, package):
@@ -144,7 +146,6 @@ class Node:
         :param request_func: structure of message
         :return: None
         """
-        # print(self.check_point)
         if not self.is_request:
             request_func(self, index, optimizer, t)
             self.is_request = True

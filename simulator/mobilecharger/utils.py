@@ -19,6 +19,6 @@ def get_location(mc):
 
 def charging(mc, net):
     for nd in net.node:
-        #if distance.euclidean(mc.current, nd.location) < nd.cha_ran:
-        p = nd.charge(mc)
-        mc.energy -= p
+        if distance.euclidean(mc.current, nd.location) <= nd.cha_ran:
+            p = nd.charge(mc)
+            mc.energy -= p

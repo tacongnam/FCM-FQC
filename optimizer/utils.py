@@ -20,13 +20,13 @@ def FLCDS_model(network=None):
     L_r = ctrl.Antecedent(np.arange(0, len(network.node) + 1), 'L_r')
     Theta = ctrl.Consequent(np.linspace(0, 1, num = 101), 'Theta')
 
-    L_r['L'] = fuzz.trapmf(L_r.universe, [0, 0, 2, 6])
-    L_r['M'] = fuzz.trimf(L_r.universe, [2, 6, 10])
-    L_r['H'] = fuzz.trapmf(L_r.universe, [6, 10, len(network.node), len(network.node)])
+    L_r['L'] = fuzz.trapmf(L_r.universe, [0, 0, 2, 3])
+    L_r['M'] = fuzz.trimf(L_r.universe, [2, 3, 6])
+    L_r['H'] = fuzz.trapmf(L_r.universe, [3, 6, len(network.node), len(network.node)])
 
-    E_min['L'] = fuzz.trapmf(E_min.universe, [0, 0, 0.25 * max_energy, 0.5 * max_energy])
-    E_min['M'] = fuzz.trimf(E_min.universe, [0.25 * max_energy, 0.5 * max_energy, 0.75 * max_energy])
-    E_min['H'] = fuzz.trapmf(E_min.universe, [0.5 * max_energy, 0.75 * max_energy, max_energy, max_energy])
+    E_min['L'] = fuzz.trapmf(E_min.universe, [0, 0, 0.1 * max_energy, 0.2 * max_energy])
+    E_min['M'] = fuzz.trimf(E_min.universe, [0.1 * max_energy, 0.2 * max_energy, 0.3 * max_energy])
+    E_min['H'] = fuzz.trapmf(E_min.universe, [0.3 * max_energy, 0.4 * max_energy, max_energy, max_energy])
 
     Theta['VL'] = fuzz.trimf(Theta.universe, [0, 0, 1/3])
     Theta['L'] = fuzz.trimf(Theta.universe, [0, 1/3, 2/3])
@@ -50,96 +50,96 @@ def FLCDS_model(network=None):
 
 BASE = -1
 
-def build_graph(net):
-    graph = defaultdict(list)
-    base_sensors = set()
-
-    # Lấy tất cả sensor từ net.target một lần
-    sensors = [(sensor, target) for target in net.target for sensor, _ in target.listSensors]
-    sensor_locations = np.array([sensor.location for sensor, _ in sensors])
-    sensor_ids = np.array([sensor.id for sensor, _ in sensors])
-    
-    # Vector hóa tính khoảng cách tới base
-    base_distances = distance.cdist(sensor_locations, [para.base], metric='euclidean').flatten()
-    com_ran = np.array([sensor.com_ran for sensor, _ in sensors])
-    base_connected = base_distances <= com_ran
-    
-    # Thêm sensor kết nối với base
-    for idx in np.where(base_connected)[0]:
-        sensor_id = sensor_ids[idx]
-        base_sensors.add(sensor_id)
-        graph[sensor_id].append(-1)
-    
-    # Vector hóa tìm receiver
-    for idx, (sensor, _) in enumerate(sensors):
-        receiver = sensor.find_receiver(net=net)
-        if receiver.id != -1 and receiver.id != sensor.id:
-            graph[sensor.id].append(receiver.id)
-    
-    return graph, base_sensors
-
-def get_path(graph, base_sensors, sensor_id, memo=None):
-    if memo is None:
-        memo = {}
-    
-    if sensor_id in memo:
-        return memo[sensor_id]
-    if sensor_id in base_sensors:
-        return [sensor_id, -1]
-    if sensor_id not in graph:
-        return []
-    
-    # Sử dụng stack thay vì đệ quy
-    stack = [(sensor_id, [sensor_id])]  # (node, path)
-    visited = {sensor_id}
-    
-    while stack:
-        current_id, path = stack.pop()
-        
-        for next_id in graph[current_id]:
-            if next_id == -1:
-                full_path = path + [-1]
-                memo[sensor_id] = full_path
-                return full_path
-            
-            if next_id not in visited:
-                visited.add(next_id)
-                stack.append((next_id, path + [next_id]))
-    
-    memo[sensor_id] = []
-    return []
-
-def get_all_path(net):
-    graph, base_sensors = build_graph(net)
-    list_path = []
-    
-    # Lấy tất cả sensor từ các target
-    target_sensors = [(target, sensor) for target in net.target for sensor, _ in target.listSensors]
-    
-    # Tìm path cho từng target
-    memo = {}  # Chia sẻ memo giữa các lần gọi get_path
-    for target, sensor in target_sensors:
-        path = get_path(graph, base_sensors, sensor.id, memo)
-        if path and path[-1] == -1:
-            list_path.append(path)
-            break
-    else:
-        list_path.append([])  # Nếu không tìm thấy path cho target
-    
-    return list_path
+# def build_graph(net):
+    # graph = defaultdict(list)
+    # base_sensors = set()
+# 
+    # # Lấy tất cả sensor từ net.target một lần
+    # sensors = [(sensor, target) for target in net.target for sensor, _ in target.listSensors]
+    # sensor_locations = np.array([sensor.location for sensor, _ in sensors])
+    # sensor_ids = np.array([sensor.id for sensor, _ in sensors])
+#     
+    # # Vector hóa tính khoảng cách tới base
+    # base_distances = distance.cdist(sensor_locations, [para.base], metric='euclidean').flatten()
+    # com_ran = np.array([sensor.com_ran for sensor, _ in sensors])
+    # base_connected = base_distances <= com_ran
+#     
+    # # Thêm sensor kết nối với base
+    # for idx in np.where(base_connected)[0]:
+        # sensor_id = sensor_ids[idx]
+        # base_sensors.add(sensor_id)
+        # graph[sensor_id].append(-1)
+#     
+    # # Vector hóa tìm receiver
+    # for idx, (sensor, _) in enumerate(sensors):
+        # receiver = sensor.find_receiver(net=net)
+        # if receiver.id != -1 and receiver.id != sensor.id:
+            # graph[sensor.id].append(receiver.id)
+#     
+    # return graph, base_sensors
+# 
+# def get_path(graph, base_sensors, sensor_id, memo=None):
+    # if memo is None:
+        # memo = {}
+#     
+    # if sensor_id in memo:
+        # return memo[sensor_id]
+    # if sensor_id in base_sensors:
+        # return [sensor_id, -1]
+    # if sensor_id not in graph:
+        # return []
+#     
+    # # Sử dụng stack thay vì đệ quy
+    # stack = [(sensor_id, [sensor_id])]  # (node, path)
+    # visited = {sensor_id}
+#     
+    # while stack:
+        # current_id, path = stack.pop()
+#         
+        # for next_id in graph[current_id]:
+            # if next_id == -1:
+                # full_path = path + [-1]
+                # memo[sensor_id] = full_path
+                # return full_path
+#             
+            # if next_id not in visited:
+                # visited.add(next_id)
+                # stack.append((next_id, path + [next_id]))
+#     
+    # memo[sensor_id] = []
+    # return []
+# 
+# def get_all_path(net):
+    # graph, base_sensors = build_graph(net)
+    # list_path = []
+#     
+    # # Lấy tất cả sensor từ các target
+    # target_sensors = [(target, sensor) for target in net.target for sensor, _ in target.listSensors]
+#     
+    # # Tìm path cho từng target
+    # memo = {}  # Chia sẻ memo giữa các lần gọi get_path
+    # for target, sensor in target_sensors:
+        # path = get_path(graph, base_sensors, sensor.id, memo)
+        # if path and path[-1] == -1:
+            # list_path.append(path)
+            # break
+    # else:
+        # list_path.append([])  # Nếu không tìm thấy path cho target
+#     
+    # return list_path
 
 def get_charge_per_sec(net, q_learning, state):
     # Lấy vị trí của các node trong list_request
-    node_locations = np.array([net.node[request["id"]].location for request in q_learning.list_request])
+    node_locations = np.array([node.location for node in net.node])
     
     action_location = q_learning.action_list[state]
     
     # Vector hóa tính khoảng cách
     distances = distance.cdist(node_locations, [action_location], metric='euclidean').flatten()
-    return para.theta / (distances + para.beta) ** 2
+    charge_rates = para.alpha / (distances + para.beta) ** 2
+    effective_charge_rates = np.where(distances <= para.cha_ran, charge_rates, 0.0)
 
-import numpy as np
-from scipy.spatial import distance
+    return effective_charge_rates
 
 def get_charging_time(network=None, mc=None, q_learning=None, time_stem=0, state=None, theta=0.1):
     time_move = distance.euclidean(mc.current, q_learning.action_list[state]) / mc.velocity
@@ -215,7 +215,7 @@ def penalty_reward(network: Network, current_mc: MobileCharger, optimizer):
 
     distances = distance.cdist(action_locs, mc_locs, metric='euclidean')
     
-    mask = distances < 2 * para.cha_ran
+    mask = distances < para.cha_ran
     penalty_values = np.where(mask, 1 / np.maximum(1, distances), 0)
     penalty = np.sum(penalty_values, axis=1)
     

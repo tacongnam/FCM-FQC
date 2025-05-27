@@ -68,10 +68,7 @@ class MobileCharger:
         else:
             self.is_self_charge = False
 
-    def get_next_location(self, network, time_stem, optimizer=None, update_path=False):
-        if update_path == True:
-            optimizer.update_all_path(network)
-
+    def get_next_location(self, network, time_stem, optimizer=None):
         next_location, charging_time = optimizer.update(self, network, time_stem, doubleq=self.double_q)
         if charging_time == -1:
             return 
@@ -116,7 +113,7 @@ class MobileCharger:
                 writer.writerows(self.log_buffer)
             self.log_buffer.clear()
 
-    def run(self, time_stem, net=None, optimizer=None, update_path=False):
+    def run(self, time_stem, net=None, optimizer=None):
         if ((not self.is_active) and optimizer.list_request) or abs(time_stem - self.end_time) < 1:
             self.is_active = True
             
@@ -133,7 +130,7 @@ class MobileCharger:
             if not optimizer.list_request:
                 self.is_active = False
 
-            self.get_next_location(network=net, time_stem=time_stem, optimizer=optimizer, update_path=update_path)
+            self.get_next_location(network=net, time_stem=time_stem, optimizer=optimizer)
         else:
             if self.is_active:
                 if not self.is_stand:
@@ -142,7 +139,7 @@ class MobileCharger:
                     self.charge(net)
                 else:
                     self.self_charge()
-
+        
         if self.energy < para.E_mc_thresh and not self.is_self_charge and self.end != para.depot:
             self.start = self.current
             self.end = para.depot

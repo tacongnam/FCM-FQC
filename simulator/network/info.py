@@ -3,8 +3,9 @@ from scipy.spatial import distance
 import numpy as np
 
 from simulator import parameters as para
-from simulator.network.utils import uniform_com_func, to_string, count_package_function, show_info
+from simulator.network.utils import to_string, show_info
 from optimizer.fuzzycmeans import Clusters
+from simulator.network.package import Package
 
 class Network:
     def __init__(self, list_node=None, mc_list=None, target=None, experiment=None, com_range=0, list_clusters=None):
@@ -12,13 +13,15 @@ class Network:
         self.base_range = []
         self.reset_neighbor()
 
+        self.all_package = True
+        self.nb_dead = 0
+
         self.mc_list = mc_list
         self.target = target
 
         self.listClusters = list_clusters
 
         self.active = False
-        self.package_lost = False
         self.com_range = com_range
 
         self.clusters = Clusters()
@@ -29,8 +32,6 @@ class Network:
         self.request_id = []
 
         self.t = 0
-
-        self.update_path = False
         
         for t in self.target:
             for n in self.node:
@@ -74,12 +75,39 @@ class Network:
             tmp2.clear()        
         return
     
+    def communicate(self, package_size):
+        targets = self.target
+        if not targets:
+            return False
+    
+        for node in self.node:
+            node.sent_through = 0
+            node.coverage.clear()
+    
+        send_mask = np.random.random(len(targets)) <= para.send_probability
+        active_targets = np.array(targets)[send_mask]
 
-    def communicate(self, func=uniform_com_func):
-        return func(self)
+        for target in active_targets:
+            # Lấy danh sách sensor active
+            sensors = [n[0] for n in target.listSensors if n[0].is_active]
+            if not sensors:
+                continue
+                
+            # Chọn sensor đầu tiên active và gửi
+            sensor = sensors[0]
+            sensor.coverage.append(target.id)
+            package = Package(package_size=package_size)
+            sensor.send(self, package, receiver=sensor.find_receiver(self))
 
-    def run_per_second(self, t, optimizer, update_path):
-        state = self.communicate()
+            if package.is_success == False:
+                return False
+            
+            if self.count_dead_node() != self.nb_dead:
+                self.reset_neighbor()
+        return True
+
+    def run_per_second(self, t, optimizer):
+        self.all_package = self.communicate(package_size=400)
 
         # Vector hóa kiểm tra năng lượng
         energies = np.array([node.energy for node in self.node])
@@ -94,96 +122,62 @@ class Network:
 
         if optimizer and self.active:
             for mc in self.mc_list:
-                mc.run(time_stem=t, net=self, optimizer=optimizer, update_path=update_path)
-        return state
+                mc.run(time_stem=t, net=self, optimizer=optimizer)
+
+        self.calculate_charged_per_sec()
 
     def simulate_max_time(self, optimizer=None, t=0, dead_time=0, max_time=604800):
         print('Simulating...')
-        nb_dead = self.count_dead_node()
-        nb_package = self.count_package()
+        self.nb_dead = self.count_dead_node()
+        self.all_package = self.communicate(package_size=0)
 
         dead_time = dead_time
-
+        
         if t == 0:
-            # Khởi tạo file CSV một lần
             with open(self.net_log_file, "w") as f:
-                writer = csv.DictWriter(f, fieldnames=['time_stamp', 'number_of_dead_nodes', 'number_of_monitored_target', 'lowest_node_energy', 'lowest_node_location', 'theta', 'avg_energy', 'average_used_of_each_node', 'average_used_of_each_node_this_second', 'average_charged_of_each_node_per_time', 'MC_0_status', 'MC_1_status', 'MC_2_status', 'MC_0_location', 'MC_1_location', 'MC_2_location'])
+                writer = csv.DictWriter(f, fieldnames=['time_stamp', 'number_of_dead_nodes', 'lowest_node_energy', 'lowest_node_location', 'theta', 'avg_energy', 'average_used_of_each_node', 'average_used_of_each_node_this_second', 'average_charged_of_each_node_per_time', 'MC_0_status', 'MC_1_status', 'MC_2_status', 'MC_0_location', 'MC_1_location', 'MC_2_location'])
                 writer.writeheader()
             with open(self.mc_log_file, "w") as f:
                 writer = csv.DictWriter(f, fieldnames=['time_stamp', 'id', 'starting_point', 'destination_point', 'decision_id', 'charging_time', 'moving_time'])
                 writer.writeheader()
         
         self.t = t
-        if nb_package != len(self.target):
-            print("ERROR!", nb_package)
-            return dead_time, nb_dead
+        if self.all_package == False:
+            print("Not enough packages received from BS!")
+            return dead_time, self.nb_dead
         
-        past_dead, past_package = nb_dead, nb_package
-        update_path = True
         log_buffer = []  # Buffer để giảm số lần ghi file
 
         while self.t <= max_time:
             self.t = self.t + 1
 
-            if self.t == 30:
-                for s in self.node:
-                    s.update_average_energy()
-
-                self.clusters.fuzzy_c_means(self)
-                optimizer.action_list = self.clusters.get_charging_pos()
-                self.active = True
-            
+            # Create clusters
             if self.t % para.update_time == 0:
-                self.clusters.update_centers()
-                self.action_list = self.clusters.get_charging_pos()
-                for s in self.node:
-                    s.update_average_energy()
+                if self.active == False:
+                    for s in self.node:
+                        s.update_average_energy()
 
-            if (self.t - 1) % 500 == 0:
+                    self.clusters.fuzzy_c_means(self)
+                    optimizer.action_list = self.clusters.get_charging_pos()
+                    self.active = True
+                else:
+                    self.clusters.update_centers()
+                    optimizer.action_list = self.clusters.get_charging_pos()
+                    for s in self.node:
+                        s.update_average_energy()
+
+            # Print logs
+            if (self.t - 1) % 1000 == 0:
                 mi = self.find_min_node()
                 avg, cha = self._calculate_avg_used_and_charged()
-                show_info(self, mi, avg, cha, past_dead, past_package, optimizer)
+                show_info(self, mi, avg, cha, self.nb_dead, optimizer)
 
-            _ = self.run_per_second(self.t, optimizer, update_path)
-            current_dead = self.count_dead_node()
+            # Run algorithm
+            self.run_per_second(self.t, optimizer)
 
-            if past_dead != current_dead:       # There is one more dead node than before
-                self.reset_neighbor()
-                update_path = True
-            else:
-                update_path = False
-            
-            current_package = self.count_package()
-            self.calculate_charged_per_sec()
-
-            if not self.package_lost and current_package < len(self.target):
-                self.package_lost = True
+            # If network is dead
+            if self.all_package == False:
                 dead_time = self.t
-            
-            if (current_dead != nb_dead and past_dead != current_dead) or (current_package != nb_package and current_package != past_package):
-                avg, cha = self._calculate_avg_used_and_charged()
-                log_buffer.append({
-                    'time_stamp': self.t,
-                    'number_of_dead_nodes': past_dead,
-                    'number_of_monitored_target': past_package,
-                    'lowest_node_energy': round(self.node[mi].energy, 3),
-                    'lowest_node_location': self.node[mi].location,
-                    'theta': optimizer.theta if optimizer else 0,
-                    'avg_energy': self.get_average_energy(),
-                    'average_used_of_each_node': avg,
-                    'average_used_of_each_node_this_second': avg / self.t,
-                    'average_charged_of_each_node_per_time': cha,
-                    'MC_0_status': self.mc_list[0].get_status(),
-                    'MC_1_status': self.mc_list[1].get_status(),
-                    'MC_2_status': self.mc_list[2].get_status(),
-                    'MC_0_location': self.mc_list[0].current,
-                    'MC_1_location': self.mc_list[1].current,
-                    'MC_2_location': self.mc_list[2].current,
-                })
-
-            past_dead, past_package = current_dead, current_package
-            if current_package != len(self.target):     # Mạng chết
-                # Ghi tất cả những gì còn trong buffer vào hệ thống
                 for mc in self.mc_list:
                     mc.flush_buffer(self.mc_log_file)
                 with open(self.net_log_file, 'a') as f:
@@ -199,7 +193,7 @@ class Network:
                 log_buffer.clear()
 
         print('\n[Network]: Finished with {} dead sensors, {} packages at {}s!'.format(self.count_dead_node(), self.count_package(), dead_time))
-        return dead_time, nb_dead
+        return dead_time, self.nb_dead
 
     def simulate(self, optimizer=None, t=0, dead_time=0, max_time=604800):
         life_time, nb_dead = self.simulate_max_time(optimizer=optimizer, t=t, dead_time=dead_time, max_time=max_time)
@@ -225,9 +219,6 @@ class Network:
 
     def count_dead_node(self):
         return np.sum(np.array([node.energy <= 0 for node in self.node]))
-
-    def count_package(self, count_func=count_package_function):
-        return count_func(self)
 
     def get_average_energy(self):
         return np.mean([node.avg_energy for node in self.node])

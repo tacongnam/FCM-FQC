@@ -12,7 +12,7 @@ membership_threshold = 0.2
 # Parameters for packages
 checked_energy = 0.0
 send_probability = 0.6
-update_time = 200
+update_time = 100
 
 # Parameters for network
 n_clusters = 80
