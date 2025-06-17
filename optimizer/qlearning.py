@@ -69,8 +69,7 @@ class Qlearning:
         history, penalty = additional_reward_function(network=network, mc=mc, q_learning=self)
 
         self.reward = (para.energy_q * energy + para.connect_q * connect + 
-                    para.cover_q * cover + para.history_q * history)# - 
-                    #para.penalty_q * penalty)
+                    para.cover_q * cover + para.history_q * history)
 
     def choose_next_state(self, mc, table):
         if mc.energy < para.E_mc_thresh:

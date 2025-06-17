@@ -72,7 +72,11 @@ class Network:
                         neighbor.level = node.level + 1
                         tmp2.append(neighbor)
             tmp1 = tmp2[:]
-            tmp2.clear()        
+            tmp2.clear()
+
+        for node in self.node:
+            if node.level == -1:
+                node.is_active = False   
         return
     
     def communicate(self, package_size):
@@ -84,10 +88,7 @@ class Network:
             node.sent_through = 0
             node.coverage.clear()
     
-        send_mask = np.random.random(len(targets)) <= para.send_probability
-        active_targets = np.array(targets)[send_mask]
-
-        for target in active_targets:
+        for id, target in enumerate(targets):
             # Lấy danh sách sensor active
             sensors = [n[0] for n in target.listSensors if n[0].is_active]
             if not sensors:
@@ -96,35 +97,37 @@ class Network:
             # Chọn sensor đầu tiên active và gửi
             sensor = sensors[0]
             sensor.coverage.append(target.id)
-            package = Package(package_size=package_size)
-            sensor.send(self, package, receiver=sensor.find_receiver(self))
+            
+            package = Package(target_id=target.id, package_size=package_size)
+            receiver=sensor.find_receiver(self)
+
+            if (receiver.id != -1) or (receiver.id == -1 and sensor in self.base_range):
+                sensor.send(self, package, receiver)
+            else:
+                assert receiver.id == -1
 
             if package.is_success == False:
                 return False
             
             if self.count_dead_node() != self.nb_dead:
+                print(f'nb_node change: {self.nb_dead} -> {self.count_dead_node()}')
+                self.nb_dead = self.count_dead_node()
                 self.reset_neighbor()
         return True
 
     def run_per_second(self, t, optimizer):
+        # Send package
         self.all_package = self.communicate(package_size=400)
 
-        # Vector hóa kiểm tra năng lượng
-        energies = np.array([node.energy for node in self.node])
-        thresh = np.array([node.energy_thresh for node in self.node])
-        request_mask = energies < thresh
-        self.request_id = np.where(request_mask)[0].tolist()
-
-        for idx in self.request_id:
-            self.node[idx].request(index=idx, optimizer=optimizer, t=t)
-        for idx in np.where(~request_mask)[0]:
-            self.node[idx].is_request = False
+        for idx, node in enumerate(self.node):
+            if node.is_active == True and node.energy < node.energy_thresh:
+                node.request(index = idx, optimizer = optimizer, t=t)
+            else:
+                node.is_request = False
 
         if optimizer and self.active:
             for mc in self.mc_list:
                 mc.run(time_stem=t, net=self, optimizer=optimizer)
-
-        self.calculate_charged_per_sec()
 
     def simulate_max_time(self, optimizer=None, t=0, dead_time=0, max_time=604800):
         print('Simulating...')
@@ -180,19 +183,9 @@ class Network:
                 dead_time = self.t
                 for mc in self.mc_list:
                     mc.flush_buffer(self.mc_log_file)
-                with open(self.net_log_file, 'a') as f:
-                    writer = csv.DictWriter(f, fieldnames=log_buffer[0].keys())
-                    writer.writerows(log_buffer)                
                 break
 
-            # Ghi buffer khi đầy hoặc kết thúc
-            if len(log_buffer) >= 100 or self.t == max_time:
-                with open(self.net_log_file, 'a') as f:
-                    writer = csv.DictWriter(f, fieldnames=log_buffer[0].keys())
-                    writer.writerows(log_buffer)
-                log_buffer.clear()
-
-        print('\n[Network]: Finished with {} dead sensors, {} packages at {}s!'.format(self.count_dead_node(), self.count_package(), dead_time))
+        print('\n[Network]: Finished with {} dead sensors at {}s!'.format(self.nb_dead, dead_time))
         return dead_time, self.nb_dead
 
     def simulate(self, optimizer=None, t=0, dead_time=0, max_time=604800):
@@ -203,25 +196,28 @@ class Network:
         func(self)
 
     def find_min_node(self):
-        energies = np.array([node.energy for node in self.node])
-        mask = (energies > 0)  # Chỉ xét node còn sống
-        return np.argmin(energies[mask]) if np.any(mask) else -1
+        max_node = self.node[0].energy_max
+        max_id = -1
+        for node in self.node:
+            if node.is_active == True and node.energy < max_node:
+                max_node = node.energy
+                max_id = node.id
+        return max_id
         
-    def calculate_charged_per_sec(self, t=0):
-        charged_added = np.array([node.charged_added for node in self.node])
-        charged_count = np.array([node.charged_count for node in self.node])    
-        
-        # Vector hóa cập nhật
-        charged_count += (charged_added > 0).astype(int)
-        for i, node in enumerate(self.node):
-            node.charged_count = charged_count[i]
-            node.charged_added = 0
-
     def count_dead_node(self):
         return np.sum(np.array([node.energy <= 0 for node in self.node]))
 
     def get_average_energy(self):
-        return np.mean([node.avg_energy for node in self.node])
+        avg_energy = 0
+        count = 0
+        for node in self.node:
+            if node.is_active == True:
+                avg_energy += node.avg_energy
+                count += 1
+        if count > 0:
+            return avg_energy / count
+        else:
+            return 0
     
     def _calculate_avg_used_and_charged(self):
         used = np.array([node.actual_used for node in self.node])

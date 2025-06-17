@@ -21,8 +21,16 @@ def reward_function(network: Network, mc: MobileCharger, q_learning, state, time
 
     p = get_charge_per_sec(network, q_learning, state)
     p_hat = p / (np.sum(p) + 10 ** -3)
-    E = np.asarray([node.energy for node in network.node])
-    e = np.asarray([node.avg_energy for node in network.node])
+    E = []
+    e = []
+
+    for node in network.node:
+        if node.is_active == True:
+            E.append(node.energy)
+            e.append(node.avg_energy)
+    
+    E = np.asarray(E)
+    e = np.asarray(e)
 
     second = len(nb_target_alive) / len(network.target)
     third = np.sum(w * p_hat)
@@ -42,19 +50,25 @@ def init_function(nb_action=para.n_clusters):
 def get_weight(net, mc, q_learning, action_id, charging_time):
     p = get_charge_per_sec(net, q_learning, action_id)
     time_move = distance.euclidean(q_learning.action_list[mc.state], q_learning.action_list[action_id]) / mc.velocity
+    request_id = []
     list_dead = []
-    w = [0 for _ in net.node]
+    w = [0 for node in net.node if node.is_active == True]
     nb_target_alive = []
 
-    for request_id, request in enumerate(q_learning.list_request):
-        node = net.node[request["id"]]
-        temp = (node.energy - time_move * request["avg_energy"]) + (p[node.id] - request["avg_energy"]) * charging_time
-        if temp < 0:
-            list_dead.append(node.id)
+    for request in q_learning.list_request:
+        request_id.append(request["id"])
 
-    for id, node in enumerate(net.node):
-        if not node.id in list_dead:
-            w[id] = node.sent_through
+    idx = 0    
+    for node in net.node:
+        if node.is_active == True and node.id in request_id:
+            temp = (node.energy - time_move * request["avg_energy"]) + (p[idx] - request["avg_energy"]) * charging_time
+            if temp < 0:
+                list_dead.append(node.id)
+
+    for node in net.node:
+        if node.is_active == True and not node.id in list_dead:
+            w[idx] = node.sent_through
+            idx += 1
         
         if not node.id in list_dead and distance.euclidean(node.location, q_learning.action_list[action_id]) <= para.cha_ran:
             nb_target_alive.extend(node.coverage)

@@ -15,49 +15,39 @@ def setup_parameters(q_alpha=0.5, q_gamma=0.5, alpha=0.7, beta=0.1, gamma=0.1):
     para.cover_q = gamma
     para.history_q = 1 - para.energy_q - para.connect_q - para.cover_q
 
-'''
-    simulation.py                                                           => Run hanoi1000n50_new x 1
-    simulation.py testcase_name                                             => Run testcase_name x 3
-    simulation.py testcase_name alpha(minmax) gamma(minmax)                 => Run tuning Q-learning parameters x 1
-    simulation.py testcase_name alpha(minmax) beta(minmax) gamma(minmax)    => Run tuning Q-learning parameters x 1
-'''
 
-def RunOnce(testcase_name = 't100', output_filename = 't100'):
+def RunOnce(testcase_name = 't_50', output_filename = 't_50', run_times = 1):
     sim = Simulation(f'data/{testcase_name}.yaml')
     sim.network_init()
-    life_time, elapsed_time = sim.run_simulator(E_mc=108000, run_times=1, output_filename=output_filename)
+    life_time, elapsed_time = sim.run_simulator(E_mc=108000, run_times=run_times, output_filename=output_filename)
     del sim
     return life_time, elapsed_time
 
-def RunMultipleTimes(testcase_name = 't100', run_time=1):
+def RunMultipleTimes(testcase_name = 't_50', run_time=15):
     lifetime = []
     runtime = []
 
     start = time.time()
-    for _ in range(run_time):
-        life, elapsed = RunOnce(testcase_name=testcase_name, output_filename=testcase_name + 'run_multiple_times')
-    
-        lifetime = lifetime + life
-        runtime = runtime + elapsed
+    life, elapsed = RunOnce(testcase_name=testcase_name, output_filename=testcase_name + 'run_multiple_times', run_times=run_time)
     end = time.time()
 
     data = {
-        'Lifetime': lifetime,
-        'Runtime': runtime
+        'Lifetime': life,
+        'Runtime': elapsed
     }
 
-    # df = pd.DataFrame(data)
-    # df.to_excel(f'{testcase_name}_output.xlsx', index=False, sheet_name='Data')
-    # print(f'Life time: {runtime} - Elapsed time: {end - start}')
+    df = pd.DataFrame(data)
+    df.to_excel(f'{testcase_name}_output.xlsx', index=False, sheet_name='Data')
+    print(f'Life time: {runtime} - Elapsed time: {end - start}')
 
 
 parser = argparse.ArgumentParser(description='Simulation input')
 parser.add_argument('--t', metavar='type', type=int, dest="type",
                     help='simulation type: [0 default run once] [1 run three times] [2 run q test] [3 run reward test]', default=0)
 parser.add_argument('--n', metavar='name', type=str, dest="name",
-                    help='testcase name: [default t10]', default='t10')
+                    help='testcase name: [default t_50]', default='t_50')
 parser.add_argument('--rt', metavar='runtime', type=int, dest='runtime',
-                    help='run times', default=1)
+                    help='run times', default=15)
 parser.add_argument('--amin', metavar='alpha_min', type=float, dest="alpha_min",
                     help='alpha_min')
 parser.add_argument('--amax', metavar='alpha_max', type=float, dest="alpha_max",
@@ -75,10 +65,9 @@ args = parser.parse_args()
 
 def main():
     if args.type == 0:
-        print('Option 1: Chay bo test t10 x 1')
         RunOnce()
     elif args.type == 1:
-        print(f'Option 2: Chay bo test {args.name} x 3')
+        print(f'Option 2: Chay bo test {args.name}')
         RunMultipleTimes(args.name, args.runtime)
     elif args.type == 2:
         for q_a in np.arange(args.alpha_min, args.alpha_max + 0.1, 0.1):

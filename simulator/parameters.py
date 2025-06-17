@@ -1,8 +1,8 @@
 # Parameters for Q-Learning
-energy_q = 0.5
+energy_q = 0.4
 connect_q = 0.2
 cover_q = 0.2
-history_q = 0.1
+history_q = 0.2
 penalty_q = 0.15
 theta = 0.4
 q_alpha = 0.5

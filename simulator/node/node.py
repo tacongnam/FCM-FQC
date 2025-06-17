@@ -80,34 +80,39 @@ class Node:
         :param receiver: the receiver node
         :return: send package to the next node and reduce energy of this node
         """
+        
+        if (self.id == -1) and (self not in net.base_range):
+            package.is_success = False
+            return
+
         d0 = math.sqrt(para.EFS / para.EMP)
         package.update_path(self.id)
         dist = distance.euclidean(self.location, para.base)
 
         if dist > self.com_ran and receiver.id != -1:
             d = distance.euclidean(self.location, receiver.location)
-            e_send = para.ET + (para.EFS * d ** 2 if d <= d0 else para.EMP * d ** 4)
-            energy_used = e_send * package.size
+            e_send = (para.ET + (para.EFS * d ** 2 if d <= d0 else para.EMP * d ** 4)) * package.size
         
             # Cập nhật năng lượng và thống kê
-            self.energy -= energy_used
-            self.used_energy += energy_used
-            self.actual_used += energy_used
+            self.energy -= e_send
+            self.used_energy += e_send
+            self.actual_used += e_send
             
             self.sent_through += 1
         
             # Gửi tiếp
             receiver.receive(package)
-            receiver.send(net, package, receiver=receiver.find_receiver(net=net))
+            next_receiver=receiver.find_receiver(net=net)
+            receiver.send(net, package, receiver=next_receiver)
         elif dist <= self.com_ran:
             package.is_success = True
             
             d = dist
-            e_send = para.ET + para.EFS * d ** 2 if d <= d0 else para.ET + para.EMP * d ** 4
+            e_send = (para.ET + (para.EFS * d ** 2 if d <= d0 else para.ET + para.EMP * d ** 4)) * package.size
 
-            self.energy -= e_send * package.size
-            self.used_energy += e_send * package.size
-            self.actual_used += e_send * package.size
+            self.energy -= e_send
+            self.used_energy += e_send
+            self.actual_used += e_send
             
             self.sent_through += 1
             
@@ -134,9 +139,10 @@ class Node:
         """
         if self.energy < 0 or not self.neighbor:
             self.is_active = False
+        elif self.level == -1:
+            self.is_active = True
         else:
-            # Vector hóa kiểm tra neighbor active
-            self.is_active = np.any([n.is_active for n in self.neighbor])
+            self.is_active = True
 
     def request(self, index, optimizer, t, request_func=request_function):
         """

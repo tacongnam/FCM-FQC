@@ -1,3 +1,7 @@
 # created by virtualenv automatically
 venv/
 data/generate_data/
+log/
+fig/
+run.md
+readme.md

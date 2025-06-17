@@ -130,7 +130,7 @@ BASE = -1
 
 def get_charge_per_sec(net, q_learning, state):
     # Lấy vị trí của các node trong list_request
-    node_locations = np.array([node.location for node in net.node])
+    node_locations = np.array([node.location for node in net.node if node.is_active == True])
     
     action_location = q_learning.action_list[state]
     
@@ -166,21 +166,22 @@ def get_charging_time(network=None, mc=None, q_learning=None, time_stem=0, state
     s1 = []  # list of node in request list which has positive charge
     s2 = []  # list of node not in request list which has negative charge
     for node in network.node:
-        d = distance.euclidean(q_learning.action_list[state], node.location)
-        p = para.alpha / (d + para.beta) ** 2
-        p1 = 0
-        for other_mc in network.mc_list:
-            if other_mc.id != mc.id and other_mc.get_status() == "charging":
-                d = distance.euclidean(other_mc.current, node.location)
-                p1 += (para.alpha / (d + para.beta) ** 2)*(other_mc.end_time - time_stem)
-            elif other_mc.id != mc.id and other_mc.get_status() == "moving" and other_mc.state != len(q_learning.q_table) - 1:
-                d = distance.euclidean(other_mc.end, node.location)
-                p1 += (para.alpha / (d + para.beta) ** 2)*(other_mc.end_time - other_mc.arrival_time)
-        
-        if node.energy - time_move * node.avg_energy + p1 < energy_min and p - node.avg_energy > 0:
-            s1.append((node, p, p1))
-        if node.energy - time_move * node.avg_energy + p1 > energy_min and p - node.avg_energy < 0:
-            s2.append((node, p, p1))
+        if node.is_active == True:
+            d = distance.euclidean(q_learning.action_list[state], node.location)
+            p = para.alpha / (d + para.beta) ** 2
+            p1 = 0
+            for other_mc in network.mc_list:
+                if other_mc.id != mc.id and other_mc.get_status() == "charging":
+                    d = distance.euclidean(other_mc.current, node.location)
+                    p1 += (para.alpha / (d + para.beta) ** 2)*(other_mc.end_time - time_stem)
+                elif other_mc.id != mc.id and other_mc.get_status() == "moving" and other_mc.state != len(q_learning.q_table) - 1:
+                    d = distance.euclidean(other_mc.end, node.location)
+                    p1 += (para.alpha / (d + para.beta) ** 2)*(other_mc.end_time - other_mc.arrival_time)
+            
+            if node.energy - time_move * node.avg_energy + p1 < energy_min and p - node.avg_energy > 0:
+                s1.append((node, p, p1))
+            if node.energy - time_move * node.avg_energy + p1 > energy_min and p - node.avg_energy < 0:
+                s2.append((node, p, p1))
     
     t = []
     for node, p, p1 in s1:

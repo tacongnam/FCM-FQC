@@ -7,3 +7,4 @@ tabulate==0.8.10
 scikit-fuzzy==0.5.0
 pyyaml==6.0.2
 networkx==3.1
+openpyxl

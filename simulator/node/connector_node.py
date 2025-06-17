@@ -26,11 +26,11 @@ class ConnectorNode(Node):
             return Node(id=-1)
     
         active_mask = np.array([n.is_active for n in neighbors])
-        type_mask = np.isin([n.type_node for n in neighbors], [Node_Type.IN_NODE, Node_Type.OUT_NODE, Node_Type.CONNECTOR_NODE])
-        cluster_mask = np.array([n.cluster_id == self.cluster_id for n in neighbors])
+        #type_mask = np.isin([n.type_node for n in neighbors], [Node_Type.IN_NODE, Node_Type.OUT_NODE, Node_Type.CONNECTOR_NODE])
+        #cluster_mask = np.array([n.cluster_id == self.cluster_id for n in neighbors])
         level_mask = np.array([self.level > n.level for n in neighbors])
     
-        valid_mask = active_mask & type_mask & cluster_mask & level_mask
+        valid_mask = active_mask & level_mask # & type_mask & cluster_mask
             
         valid_neighbors = neighbors[valid_mask]
         if not valid_neighbors.size:
@@ -50,6 +50,7 @@ class ConnectorNode(Node):
     def probe_neighbors(self, network):
         self.neighbor.clear()
         self.potentialSender.clear()
+        self.candidate = None
 
         nodes = np.array(network.node)
         if not nodes.size:
