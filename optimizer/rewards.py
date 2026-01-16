@@ -31,10 +31,11 @@ def reward_function(network: Network, mc: MobileCharger, q_learning, state, time
     
     E = np.asarray(E)
     e = np.asarray(e)
+    E_safe = np.maximum(E, 1e-9)
 
     second = len(nb_target_alive) / len(network.target)
     third = np.sum(w * p_hat)
-    first = np.sum(e * p / E)
+    first = np.sum(e * p / E_safe)
 
     return first, second, third, charging_time
 

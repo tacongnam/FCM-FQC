@@ -1,7 +1,7 @@
 python3 -m virtualenv venv --python=3.9
 venv\Scripts\activate.bat
 
-- Cài đặt wheel ldap 3.4.4:
+- Cài đặt wheel ldap 3.4.4 (nếu cần):
 pip install python_ldap-3.4.4-cp39-cp39-win_amd64.whl
 - Cài đặt các requirement khác:
 pip install -r requirements.txt

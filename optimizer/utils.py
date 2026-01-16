@@ -184,10 +184,21 @@ def get_charging_time(network=None, mc=None, q_learning=None, time_stem=0, state
                 s2.append((node, p, p1))
     
     t = []
+    epsilon = 1e-9
+
     for node, p, p1 in s1:
-        t.append((energy_min - node.energy + time_move * node.avg_energy - p1) / (p - node.avg_energy))
+        denominator = p - node.avg_energy
+        if abs(denominator) < epsilon:
+             denominator = epsilon
+        val = (energy_min - node.energy + time_move * node.avg_energy - p1) / denominator
+        t.append(max(0, val))
+
     for node, p, p1 in s2:
-        t.append((energy_min - node.energy + time_move * node.avg_energy - p1) / (p - node.avg_energy))
+        denominator = p - node.avg_energy
+        if abs(denominator) < epsilon:
+             denominator = -epsilon
+        val = (energy_min - node.energy + time_move * node.avg_energy - p1) / denominator
+        t.append(max(0, val))
     
     dead_list = [] 
     for item in t:
@@ -201,6 +212,7 @@ def get_charging_time(network=None, mc=None, q_learning=None, time_stem=0, state
             if temp < energy_min:
                 nb_dead += 1
         dead_list.append(nb_dead)
+
     if dead_list:
         arg_min = np.argmin(dead_list)
         return t[arg_min]
@@ -217,7 +229,8 @@ def penalty_reward(network: Network, current_mc: MobileCharger, optimizer):
     distances = distance.cdist(action_locs, mc_locs, metric='euclidean')
     
     mask = distances < para.cha_ran
-    penalty_values = np.where(mask, 1 / np.maximum(1, distances), 0)
+    safe_distances = np.maximum(1, distances)
+    penalty_values = np.where(mask, 1 / safe_distances, 0)
     penalty = np.sum(penalty_values, axis=1)
     
     return penalty
